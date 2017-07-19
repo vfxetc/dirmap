@@ -8,7 +8,7 @@ DirMapEntry = collections.namedtuple('DirMapEntry', 'src dst pattern')
 
 class DirMap(collections.Sequence):
 
-    def __init__(self, input_):
+    def __init__(self, input_=None):
 
         self._entries = []
 
@@ -16,6 +16,8 @@ class DirMap(collections.Sequence):
             input_ = [x.split(':', 1) for x in input_.split(';') if x]
         elif isinstance(input_, dict):
             input_ = input_.iteritems()
+        elif input_ is None:
+            return
 
         for src, dst in input_:
             self.add(src, dst, _sort=False)
@@ -34,6 +36,26 @@ class DirMap(collections.Sequence):
 
         if _sort:
             self._sort()
+
+    def auto_add(self, paths, *args):
+        
+        if isinstance(paths, basestring):
+            paths = [paths]
+            paths.extend(args)
+        elif args:
+            raise ValueError("Please provide an iterable or positional args, not both.")
+
+        paths = list(paths)
+        dsts = set(p for p in paths if os.path.exists(p))
+        srcs = set(p for p in paths if p not in dsts)
+        
+        if len(dsts) != 1:
+            raise ValueError("Not exactly one of given paths exists.", paths)
+        dst = dsts.pop()
+        
+        for src in srcs:
+            self.add(src, dst, _sort=False)
+        self._sort()
 
     def _sort(self):
         self._entries.sort(key=lambda e: (-len(e.src), e.src, e.dst))
