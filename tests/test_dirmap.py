@@ -14,19 +14,19 @@ class TestDirMap(TestCase):
             ('/src3', '/dst3'),
         ])
 
-        self.assertEqual(map_.get('/path/to/thing'), '/path/to/thing')
+        self.assertEqual(map_('/path/to/thing'), '/path/to/thing')
 
-        self.assertEqual(map_.get('/src'), '/dst')
-        self.assertEqual(map_.get('/src/inner'), '/dst2/inner')
-        self.assertEqual(map_.get('/src3'), '/dst3')
-        self.assertEqual(map_.get('/src/another'), '/dst/another')
+        self.assertEqual(map_('/src'), '/dst')
+        self.assertEqual(map_('/src/inner'), '/dst2/inner')
+        self.assertEqual(map_('/src3'), '/dst3')
+        self.assertEqual(map_('/src/another'), '/dst/another')
 
     def test_empty(self):
-        map_ = DirMap('')
+        map_ = DirMap()
         self.assertEqual(len(map_), 0)
-        self.assertEqual(map_.get('/path/to/thing'), '/path/to/thing')
+        self.assertEqual(map_('/path/to/thing'), '/path/to/thing')
 
-    def test_auto_add(self):
+    def test_add_existing(self):
 
         here = os.path.abspath(os.path.join(__file__, '..', '..'))
 
@@ -35,11 +35,11 @@ class TestDirMap(TestCase):
         dst = os.path.join(here, 'dirmap')
 
         map_ = DirMap()
-        map_.auto_add((src1, dst, src2))
+        map_.add_existing((src1, dst, src2))
 
-        self.assertEqual(map_.get(src1), dst)
-        self.assertEqual(map_.get(src2), dst)
+        self.assertEqual(map_(src1), dst)
+        self.assertEqual(map_(src2), dst)
 
-        self.assertRaises(ValueError, map_.auto_add, ['just one'])
-        self.assertRaises(ValueError, map_.auto_add, ['list'], 'and args')
-        self.assertRaises(ValueError, map_.auto_add, ['none', 'exist'])
+        self.assertRaises(ValueError, map_.add_existing, ['just one'])
+        self.assertRaises(ValueError, map_.add_existing, ['list'], 'and args')
+        self.assertRaises(ValueError, map_.add_existing, ['none', 'exist'])

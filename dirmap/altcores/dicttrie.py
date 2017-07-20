@@ -192,16 +192,13 @@ class DirMap(collections.Mapping):
         dst, rel_path = lookup_trie(self._trie, path)
 
         if not dst:
-            return
+            return path
 
         if rel_path:
             return dst + os.path.sep + rel_path
         else:
             return dst
 
-
-    def get(self, path):
-        res = self(path) or path
-        #print path, res
-        return res
+    def apply(self, path):
+        return self(path)
 

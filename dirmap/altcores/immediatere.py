@@ -122,8 +122,8 @@ class DirMap(collections.Sequence):
                     return entry.dst + rel_path
                 else:
                     return entry.dst
+        return path
 
-    def get(self, path):
-        res = self(path) or path
-        return res
+    def apply(self, path):
+        return self(path)
 

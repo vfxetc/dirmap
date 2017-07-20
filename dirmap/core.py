@@ -1,9 +1,5 @@
 import collections
 import os
-import re
-
-
-DirMapEntry = collections.namedtuple('DirMapEntry', 'src dst pattern')
 
 
 def assert_clean(name, path):
@@ -13,7 +9,7 @@ def assert_clean(name, path):
         raise ValueError("{} must be normalized.".format(name), path)
 
 
-class DirMap(collections.Sequence):
+class DirMap(collections.Mapping):
 
     """Remaps directories from one layout to another.
 
@@ -29,49 +25,57 @@ class DirMap(collections.Sequence):
     """
 
     def __init__(self, input_=None):
-        self._entries = []
-        self._sorted = False
+        self._map = {}
+        self._sorted = None
         if input_ is not None:
-            self.add_many(input_)
+            self.add(input_)
 
-    def add_many(self, input_):
-
-        if isinstance(input_, basestring):
-            to_add = []
-            for chunk in input_.split(';'):
-
-                if not chunk:
-                    continue
-
-                parts = chunk.split(',')
-                if len(parts) > 1:
-                    to_add.append(set(parts))
-                    continue
-
-                parts = chunk.split(':')
-                if len(parts) != 2:
-                    raise ValueError("More than one colon in chunk.", chunk)
-                to_add.append(parts)
-
-        elif isinstance(input_, dict):
-            to_add = input_.items()
-
-        else:
-            to_add = input_
-
-        for spec in to_add:
-            if isinstance(spec, set):
-                self.auto_add(spec)
-            else:
-                self.add(*spec)
-
-    def add(self, src, dst):
+    def add_one(self, src, dst):
         for name, path in ("Source", src), ("Destination", dst):
             assert_clean(name, path)
-        self._entries.append((src, dst))
-        self._sorted = False
+        self._map[src] = dst
+        self._sorted = None
 
-    def auto_add(self, paths, *args):
+    def add(self, input_, dst=None):
+
+        if dst is not None:
+            self.add_one(input_, dst)
+            return
+
+        if isinstance(input_, (set, basestring)):
+            input_ = [input_]
+
+        elif isinstance(input_, dict):
+            input_ = input_.iteritems()
+
+        for spec in input_:
+            if isinstance(spec, set):
+                self.add_existing(spec)
+            if isinstance(spec, str):
+                self.add_str(spec)
+            else:
+                self.add_one(*spec)
+
+    def add_str(self, input_):
+
+        for chunk in input_.split(';'):
+
+            if not chunk:
+                continue
+
+            parts = chunk.split(',')
+            if len(parts) > 1:
+                self.add_existing(parts)
+                continue
+
+            parts = chunk.split(':')
+            if len(parts) != 2:
+                raise ValueError("More than one colon in chunk.", chunk)
+            
+            self.add_one(*parts)
+
+
+    def add_existing(self, paths, *args):
 
         if isinstance(paths, basestring):
             paths = [paths]
@@ -88,21 +92,23 @@ class DirMap(collections.Sequence):
         dst = dsts.pop()
         
         for src in srcs:
-            self.add(src, dst)
+            self.add_one(src, dst)
+
+    def __iter__(self):
+        return iter(self._map)
 
     def __getitem__(self, i):
-        return self._entries[i]
+        return self._map[i]
 
     def __len__(self):
-        return len(self._entries)
+        return len(self._map)
 
     def __call__(self, path):
 
-        if not self._sorted:
-            self._entries.sort(key=lambda (src, dst): (-len(src), src, dst))
-            self._sorted = True
+        if self._sorted is None:
+            self._sorted = sorted(self._map.iteritems(), key=lambda (src, dst): (-len(src), src, dst))
 
-        for src, dst in self._entries:
+        for src, dst in self._sorted:
 
             if not path.startswith(src):
                 continue
@@ -114,8 +120,8 @@ class DirMap(collections.Sequence):
                 rel_path = path[len(src):]
                 return dst + rel_path
 
+        return path
 
-    def get(self, path):
-        res = self(path) or path
-        return res
+    def apply(self, path):
+        return self(path)
 
