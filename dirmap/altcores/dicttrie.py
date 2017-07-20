@@ -57,16 +57,12 @@ def format_trie_pattern(root, indent=''):
 
 
 
-def create_trie(pair_iter):
-    trie = {}
-    for src, dst in pair_iter:
-        node = trie
-        parts = src[1:].split(os.path.sep)
-        for part in parts:
-            node = node.setdefault(part, {})
-        node[None] = dst
-    return trie
-
+def append_trie(trie, src, dst):
+    node = trie
+    parts = src[1:].split(os.path.sep)
+    for part in parts:
+        node = node.setdefault(part, {})
+    node[None] = dst
 
 def lookup_trie(trie, path):
 
@@ -77,7 +73,7 @@ def lookup_trie(trie, path):
     for i, part in enumerate(parts):
         
         node = node.get(part)
-        if node is None: # The end!
+        if node is None: # We hit the end of the trie.
             break
 
         dst = node.get(None)
@@ -115,7 +111,7 @@ class DirMap(collections.Mapping):
 
     def __init__(self, input_=None):
         self._maps = {}
-        self._setup = False
+        self._trie = {}
         if input_ is not None:
             self.add_many(input_)
 
@@ -158,7 +154,7 @@ class DirMap(collections.Mapping):
 
         #pattern = re.compile(r'^(?:{})({}.*)?$'.format(re.escape(src), re.escape(os.path.sep)))
         self._maps[src] = dst
-        self._is_setup = False
+        append_trie(self._trie, src, dst)
 
     def auto_add(self, paths, *args):
         
@@ -192,10 +188,6 @@ class DirMap(collections.Mapping):
     def __call__(self, path):
 
         #assert_clean('Path', path)
-
-        if not self._setup:
-            self._trie = create_trie(self._maps.iteritems())
-            self._setup = True
 
         dst, rel_path = lookup_trie(self._trie, path)
 

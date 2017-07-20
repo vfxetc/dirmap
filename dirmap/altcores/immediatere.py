@@ -30,7 +30,6 @@ class DirMap(collections.Sequence):
 
     def __init__(self, input_=None):
         self._entries = []
-        self._sorted = False
         if input_ is not None:
             self.add_many(input_)
 
@@ -61,17 +60,28 @@ class DirMap(collections.Sequence):
 
         for spec in to_add:
             if isinstance(spec, set):
-                self.auto_add(spec)
+                self.auto_add(spec, _setup=False)
             else:
-                self.add(*spec)
+                self.add(*spec, _setup=False)
 
-    def add(self, src, dst):
+        self._setup()
+
+    def add(self, src, dst, _setup=True):
+
         for name, path in ("Source", src), ("Destination", dst):
             assert_clean(name, path)
-        self._entries.append((src, dst))
-        self._sorted = False
 
-    def auto_add(self, paths, *args):
+        pattern = re.compile(r'^(?:{})({}.*)?$'.format(re.escape(src), re.escape(os.path.sep)))
+        self._entries.append(DirMapEntry(src, dst, pattern))
+
+        if _setup:
+            self._setup()
+
+    def auto_add(self, paths, *args, **kwargs):
+        
+        _setup = kwargs.pop('_setup', True)
+        if kwargs:
+            raise ValueError("Too many kwargs.", kwargs)
 
         if isinstance(paths, basestring):
             paths = [paths]
@@ -88,7 +98,13 @@ class DirMap(collections.Sequence):
         dst = dsts.pop()
         
         for src in srcs:
-            self.add(src, dst)
+            self.add(src, dst, _setup=False)
+        
+        if _setup:
+            self._setup()
+
+    def _setup(self):
+        self._entries.sort(key=lambda e: (-len(e.src), e.src, e.dst))
 
     def __getitem__(self, i):
         return self._entries[i]
@@ -97,23 +113,15 @@ class DirMap(collections.Sequence):
         return len(self._entries)
 
     def __call__(self, path):
-
-        if not self._sorted:
-            self._entries.sort(key=lambda (src, dst): (-len(src), src, dst))
-            self._sorted = True
-
-        for src, dst in self._entries:
-
-            if not path.startswith(src):
-                continue
-
-            if len(src) == len(path):
-                return dst
-
-            if path[len(src)] == os.path.sep:
-                rel_path = path[len(src):]
-                return dst + rel_path
-
+        #assert_clean('Path', path)
+        for entry in self._entries:
+            m = entry.pattern.match(path)
+            if m:
+                rel_path = m.group(1)
+                if rel_path:
+                    return entry.dst + rel_path
+                else:
+                    return entry.dst
 
     def get(self, path):
         res = self(path) or path
