@@ -40,6 +40,42 @@ class TestDirMap(TestCase):
         self.assertEqual(map_(src1), dst)
         self.assertEqual(map_(src2), dst)
 
-        self.assertRaises(ValueError, map_.add_existing, ['just one'])
-        self.assertRaises(ValueError, map_.add_existing, ['list'], 'and args')
-        self.assertRaises(ValueError, map_.add_existing, ['none', 'exist'])
+        self.assertRaises(ValueError, map_.add_existing, [src1]) # Just one.
+        self.assertRaises(ValueError, map_.add_existing, [src1], dst) # Wrong API use.
+        self.assertRaises(ValueError, map_.add_existing, [src1, src2]) # Nothing exists.
+        self.assertRaises(ValueError, map_.add_existing, [src1, dst + '/..']) # Unclean.
+
+    def test_deep_apply(self):
+
+        map_ = DirMap({'/src': '/dst'})
+
+        # Basics
+        x = map_.deep_apply({
+            '/src/key': ['/src/listitem'],
+            'tuple': ('/src/tupleitem', ),
+            'set': set(['/src/setitem']),
+        })
+        self.assertEqual(x, {
+            '/dst/key': ['/dst/listitem'],
+            'tuple': ('/dst/tupleitem', ),
+            'set': set(['/dst/setitem']),
+        })
+
+        # Leave out dict keys.
+        x = map_.deep_apply({'/src': '/src'}, dict_keys=False)
+        self.assertEqual(x, {'/src': '/dst'})
+
+        # Dict recursion
+        a = {}
+        a['/src'] = a
+        b = map_.deep_apply(a)
+        self.assertEqual(b.keys(), ['/dst'])
+        self.assertIs(b['/dst'], b)
+
+        # List recursion
+        a = ['/src']
+        a.append(a)
+        b = map_.deep_apply(a)
+        self.assertEqual(b[0], '/dst')
+        self.assertIs(b[1], b)
+
