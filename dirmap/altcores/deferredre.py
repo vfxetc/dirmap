@@ -30,8 +30,18 @@ class DirMap(collections.Sequence):
 
     def __init__(self, input_=None):
         self._entries = []
+        self._to_setup = []
         if input_ is not None:
             self.add_many(input_)
+
+    def _setup(self):
+        if not self._to_setup:
+            return
+        for src, dst in self._to_setup:
+            pattern = re.compile(r'^(?:{})({}.*)?$'.format(re.escape(src), re.escape(os.path.sep)))
+            self._entries.append(DirMapEntry(src, dst, pattern))
+        self._to_setup = []
+        self._entries.sort(key=lambda e: (-len(e.src), e.src, e.dst))
 
     def add_many(self, input_):
 
@@ -60,29 +70,22 @@ class DirMap(collections.Sequence):
 
         for spec in to_add:
             if isinstance(spec, set):
-                self.auto_add(spec, _setup=False)
+                self.auto_add(spec)
             else:
-                self.add(*spec, _setup=False)
+                self.add(*spec)
 
-        self._setup()
-
-    def add(self, src, dst, _setup=True):
+    def add(self, src, dst):
 
         for name, path in ("Source", src), ("Destination", dst):
-            assert_clean(name, path)
+            if not os.path.isabs(dst):
+                raise ValueError("{} must be absolute.".format(name), dst)
+            if not os.path.normpath(dst) == dst:
+                raise ValueError("{} must be normalized.".format(name), dst)
 
-        pattern = re.compile(r'^(?:{})({}.*)?$'.format(re.escape(src), re.escape(os.path.sep)))
-        self._entries.append(DirMapEntry(src, dst, pattern))
+        self._to_setup.append((src, dst))
 
-        if _setup:
-            self._setup()
-
-    def auto_add(self, paths, *args, **kwargs):
+    def auto_add(self, paths, *args):
         
-        _setup = kwargs.pop('_setup', True)
-        if kwargs:
-            raise ValueError("Too many kwargs.", kwargs)
-
         if isinstance(paths, basestring):
             paths = [paths]
             paths.extend(args)
@@ -98,22 +101,19 @@ class DirMap(collections.Sequence):
         dst = dsts.pop()
         
         for src in srcs:
-            self.add(src, dst, _setup=False)
-        
-        if _setup:
-            self._setup()
-
-    def _setup(self):
-        self._entries.sort(key=lambda e: (-len(e.src), e.src, e.dst))
-
+            self.add(src, dst)
+    
     def __getitem__(self, i):
+        self._setup()
         return self._entries[i]
 
     def __len__(self):
+        self._setup()
         return len(self._entries)
 
     def __call__(self, path):
         #assert_clean('Path', path)
+        self._setup()
         for entry in self._entries:
             m = entry.pattern.match(path)
             if m:
@@ -125,5 +125,6 @@ class DirMap(collections.Sequence):
 
     def get(self, path):
         res = self(path) or path
+        #print path, res
         return res
 

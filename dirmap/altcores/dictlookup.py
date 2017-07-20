@@ -1,9 +1,7 @@
 import collections
 import os
 import re
-
-
-DirMapEntry = collections.namedtuple('DirMapEntry', 'src dst pattern')
+import pprint
 
 
 def assert_clean(name, path):
@@ -13,7 +11,7 @@ def assert_clean(name, path):
         raise ValueError("{} must be normalized.".format(name), path)
 
 
-class DirMap(collections.Sequence):
+class DirMap(collections.Mapping):
 
     """Remaps directories from one layout to another.
 
@@ -29,7 +27,8 @@ class DirMap(collections.Sequence):
     """
 
     def __init__(self, input_=None):
-        self._entries = []
+        self._maps = {}
+        self._setup = False
         if input_ is not None:
             self.add_many(input_)
 
@@ -60,28 +59,22 @@ class DirMap(collections.Sequence):
 
         for spec in to_add:
             if isinstance(spec, set):
-                self.auto_add(spec, _setup=False)
+                self.auto_add(spec)
             else:
-                self.add(*spec, _setup=False)
+                self.add(*spec)
 
-        self._setup()
 
-    def add(self, src, dst, _setup=True):
+    def add(self, src, dst):
 
         for name, path in ("Source", src), ("Destination", dst):
             assert_clean(name, path)
 
-        pattern = re.compile(r'^(?:{})({}.*)?$'.format(re.escape(src), re.escape(os.path.sep)))
-        self._entries.append(DirMapEntry(src, dst, pattern))
+        #pattern = re.compile(r'^(?:{})({}.*)?$'.format(re.escape(src), re.escape(os.path.sep)))
+        self._maps[tuple(src[1:].split(os.path.sep))] = dst
+        self._is_setup = False
 
-        if _setup:
-            self._setup()
-
-    def auto_add(self, paths, *args, **kwargs):
+    def auto_add(self, paths, *args):
         
-        _setup = kwargs.pop('_setup', True)
-        if kwargs:
-            raise ValueError("Too many kwargs.", kwargs)
 
         if isinstance(paths, basestring):
             paths = [paths]
@@ -98,32 +91,39 @@ class DirMap(collections.Sequence):
         dst = dsts.pop()
         
         for src in srcs:
-            self.add(src, dst, _setup=False)
-        
-        if _setup:
-            self._setup()
+            self.add(src, dst)
 
-    def _setup(self):
-        self._entries.sort(key=lambda e: (-len(e.src), e.src, e.dst))
+    def __iter__(self):
+        return iter(self._maps)
 
     def __getitem__(self, i):
-        return self._entries[i]
+        return self._maps[i]
 
     def __len__(self):
-        return len(self._entries)
+        return len(self._maps)
 
     def __call__(self, path):
+
         #assert_clean('Path', path)
-        for entry in self._entries:
-            m = entry.pattern.match(path)
-            if m:
-                rel_path = m.group(1)
-                if rel_path:
-                    return entry.dst + rel_path
-                else:
-                    return entry.dst
+
+        parts = tuple(path[1:].split(os.path.sep))
+        for i in xrange(len(parts), 0, -1):
+            src = parts[:i]
+            dst = self._maps.get(src)
+            if dst is not None:
+                rel_path = os.path.sep.join(parts[i:])
+                break
+        else:
+            return
+
+        if rel_path:
+            return dst + os.path.sep + rel_path
+        else:
+            return dst
+
 
     def get(self, path):
         res = self(path) or path
+        #print path, res
         return res
 
