@@ -34,6 +34,9 @@ tests = [
     ('/Volumes/CGroot/Projects/SitG/sequences/DR/shots/DR00/layout/publishes/maya_scene/something/v0001/something.mb',
      '/Volumes/heap/sitg/work/film/sequences/DR/shots/DR00/layout/publishes/maya_scene/something/v0001/something.mb'),
 
+    ('not a path at all',
+    'not a path at all'),
+
 ]
 
 

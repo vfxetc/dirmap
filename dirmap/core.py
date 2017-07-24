@@ -29,7 +29,7 @@ class DirMap(collections.Mapping):
     def __init__(self, input_=None):
         self._map = {}
         self._sorted = None
-        if input_ is not None:
+        if input_:
             self.add(input_)
 
     def add_one(self, src, dst):
@@ -134,6 +134,17 @@ class DirMap(collections.Mapping):
 
     def __call__(self, path):
 
+        if not isinstance(path, basestring): 
+            raise ValueError("DirMap requires a string.")
+
+        # Shortcut when we are empty.
+        if not self._map: 
+            return path
+
+        # Shotcut when not an abspath.
+        if not os.path.isabs(path):
+            return path
+
         if self._sorted is None:
             self._sorted = sorted(self._map.iteritems(), key=lambda (src, dst): (-len(src), src, dst))
 
@@ -175,6 +186,11 @@ class DirMap(collections.Mapping):
         .. seealso:: :func:`dirmap.deep.deep_apply` for caveats.
 
         """
+
+        # Shortcut!
+        if not self._map:
+            return obj
+        
         return _deep_apply((lambda x: self(x) if isinstance(x, basestring) else x), obj, **kwargs)
 
 

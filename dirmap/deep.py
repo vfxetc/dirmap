@@ -1,6 +1,6 @@
 
 
-def deep_apply(func, obj, dict_keys=True):
+def deep_apply(func, obj, dict_keys=False):
     """Apply func to everything in the given structure.
 
     This works predictably with dicts, lists, sets and tuples. Any classes
