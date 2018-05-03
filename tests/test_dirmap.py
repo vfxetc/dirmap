@@ -56,19 +56,19 @@ class TestDirMap(TestCase):
             'set': set(['/src/setitem']),
         })
         self.assertEqual(x, {
-            '/dst/key': ['/dst/listitem'],
+            '/src/key': ['/dst/listitem'],
             'tuple': ('/dst/tupleitem', ),
             'set': set(['/dst/setitem']),
         })
 
-        # Leave out dict keys.
-        x = map_.deep_apply({'/src': '/src'}, dict_keys=False)
-        self.assertEqual(x, {'/src': '/dst'})
+        # Include dict keys.
+        x = map_.deep_apply({'/src': '/src'}, dict_keys=True)
+        self.assertEqual(x, {'/dst': '/dst'})
 
         # Dict recursion
         a = {}
         a['/src'] = a
-        b = map_.deep_apply(a)
+        b = map_.deep_apply(a, dict_keys=True)
         self.assertEqual(b.keys(), ['/dst'])
         self.assertIs(b['/dst'], b)
 
