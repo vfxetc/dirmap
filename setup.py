@@ -5,13 +5,13 @@ setup(
     name='dirmap',
     version='0.1.0',
     description='Directory remapper.',
-    url='http://github.com/mikeboers/dirmap',
+    url='http://github.com/vfxetc/dirmap',
     
     packages=find_packages(exclude=['build*', 'tests*']),
     include_package_data=True,
     
     author='Mike Boers',
-    author_email='dirmap@mikeboers.com',
+    author_email='floss+dirmap@vfxetc.com',
     license='BSD-3',
     
     classifiers=[
